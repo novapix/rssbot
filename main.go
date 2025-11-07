@@ -2,23 +2,21 @@ package main
 
 import (
 	"os"
-
 	"os/signal"
-
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/novapix/rssbot/db"
 	"github.com/novapix/rssbot/discord"
 	"github.com/novapix/rssbot/logger"
+	"github.com/novapix/rssbot/poller"
 )
 
 func main() {
-
 	logger.Init("rssbot.log")
 
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		logger.Info.Println("No .env file found, using environment variables")
 	} else {
 		logger.Info.Println(".env loaded successfully")
@@ -49,15 +47,14 @@ func main() {
 		logger.Error.Fatalf("Discord bot exited with error: %v", err)
 	}
 
-	// TODO: Start RSS poller
+	p := poller.NewPoller(dbConn, 2*time.Minute)
+	bot.StartPoller(p)
 
-	// Block and wait for OS signals
 	logger.Info.Println("Bot is running. Press CTRL-C to exit.")
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-stop
 
-	// Graceful shutdown
 	logger.Info.Println("Shutting down...")
 	bot.Session.Close()
 	dbConn.Close()
